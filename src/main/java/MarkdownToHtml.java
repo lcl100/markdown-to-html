@@ -62,14 +62,8 @@ public class MarkdownToHtml {
         List<String> lines = loadMd(md);
 
         // 处理单行匹配，多行作用
-        ArrayList<String> newLines = new ArrayList<String>();
-        int count = 0;// 计数器，记录匹配到的行数
-        boolean unorderedListFlag = false;// 无序列表标志，当为true时表示当前正在遍历的行是无序列表行，为false时表示前正在遍历的行不是无序列表行
-        boolean orderedListFlag = false;// 有序列表标志，当为true时表示当前正在遍历的行是有序列表行，为false时表示前正在遍历的行不是有序列表行
-        boolean simpleQuoteFlag = false;// 简单引用行标志，当为true时表示当前正在遍历的行是简单引用行，为false时表示前正在遍历的行不是简单引用行
-        boolean tableRowFlag = false;// 表格行标志，当为true时表示当前正在遍历的行是表格行标志，为false时表示前正在遍历的行不是表格行标志
         String newLine = "";
-        List<String> tempList = new ArrayList<String>();
+        List<String> resultList = new ArrayList<String>();
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             // 处理行内匹配
@@ -117,111 +111,83 @@ public class MarkdownToHtml {
             }
 
             // 无序列表
+            newLine = "";
             Matcher unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);
-            if (unorderedListMatcher.find()) {
-                count++;
-                tempList.add(unorderedListMatcher.group(2));
-                unorderedListFlag = true;
-                continue;// 注意，匹配后，需要跳出本次循环，不要执行后面的代码
-            }
-            if (count > 0 && unorderedListFlag) {// 单凭count一个变量无法确定当前处理的是无序列表，所以还增加了一个unorderedListFlag标记用来判断当前处理的是无序列表
-                // 无序列表需要添加"<ul></ul>"
-                newLine += "<ul>";
-                for (int j = 0; j < count; j++) {
-                    // 将匹配到的所有列表行作"<li></li>"处理
-                    newLine += "<li>" + tempList.get(j) + "</li>";
+            while (unorderedListMatcher.find()) {
+                unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);// 因为find()方法是一次性的，所以要重新生成Matcher
+                if (unorderedListMatcher.find()) {
+                    newLine += "<li>" + unorderedListMatcher.group(2) + "</li>";
                 }
-                newLine += "</ul>";
-                newLines.add(newLine);
-                // 注意，由于下面几个都是局部变量，会被用到多次，所以将其重置
-                newLine = "";
-                count = 0;
-                tempList.clear();
-                unorderedListFlag = false;
+                i++;
+                line = lines.get(i);
+                unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);
+            }
+            if (newLine.trim().length() > 0) {
+                resultList.add("<ul>" + newLine + "</ul>");
             }
             // 有序列表
+            newLine = "";
             Matcher orderedListMatcher = Pattern.compile(MARKDOWN_ORDERED_LIST_REGEXP).matcher(line);
-            if (orderedListMatcher.find()) {
-                count++;
-                tempList.add(orderedListMatcher.group(2));
-                orderedListFlag = true;
-                continue;
-            }
-            if (count > 0 && orderedListFlag) {
-                newLine += "<ol>";
-                for (int j = 0; j < count; j++) {
-                    newLine += "<li>" + tempList.get(j) + "</li>";
+            while (orderedListMatcher.find()) {
+                orderedListMatcher = Pattern.compile(MARKDOWN_ORDERED_LIST_REGEXP).matcher(line);
+                if (orderedListMatcher.find()) {
+                    newLine += "<li>" + orderedListMatcher.group(2) + "</li>";
                 }
-                newLine += "</ol>";
-                newLines.add(newLine);
-                newLine = "";
-                count = 0;
-                tempList.clear();
-                orderedListFlag = false;
+                i++;
+                line = lines.get(i);
+                orderedListMatcher = Pattern.compile(MARKDOWN_ORDERED_LIST_REGEXP).matcher(line);
             }
-            // 简单引用
+            if (newLine.trim().length() > 0) {
+                resultList.add("<ol>" + newLine + "</ol>");
+            }
+            // 简单引用，如果是空">"行则后面应该有空格，否则也无法匹配成功
+            newLine = "";
             Matcher simpleQuoteMatcher = Pattern.compile(MARKDOWN_SIMPLE_QUOTE_REGEXP).matcher(line);
-            if (simpleQuoteMatcher.find()) {
-                count++;
-                tempList.add(simpleQuoteMatcher.group(2));
-                simpleQuoteFlag = true;
-                continue;
-            }
-            if (count > 0 && simpleQuoteFlag) {
-                newLine += "<blockquote>";
-                for (int j = 0; j < count; j++) {
-                    newLine += tempList.get(j) + "<br/>";
+            while (simpleQuoteMatcher.find()) {
+                simpleQuoteMatcher = Pattern.compile(MARKDOWN_SIMPLE_QUOTE_REGEXP).matcher(line);
+                if (simpleQuoteMatcher.find()) {
+                    newLine += simpleQuoteMatcher.group(2) + "<br/>";
                 }
-                newLine += "</blockquote>";
-                newLines.add(newLine);
-                newLine = "";
-                count = 0;
-                tempList.clear();
-                simpleQuoteFlag = false;
+                i++;
+                line = lines.get(i);
+                simpleQuoteMatcher = Pattern.compile(MARKDOWN_SIMPLE_QUOTE_REGEXP).matcher(line);
             }
-            // 表格行
+            if (newLine.trim().length() > 0) {
+                resultList.add("<blockquote>" + newLine + "</blockquote>");
+            }
+            // 表格行，注意每个表格行最后一个"|"的后面不能有空格，否则无法匹配成功
+            newLine = "";
             Matcher tableRowMatcher = Pattern.compile(MARKDOWN_TABLE_ROW_REGEXP).matcher(line);
-            if (tableRowMatcher.find()) {
-                count++;
-                tempList.add(tableRowMatcher.group(2));
-                tableRowFlag = true;
-                continue;
+            int rowCount = 0;
+            while (tableRowMatcher.find()) {
+                tableRowMatcher = Pattern.compile(MARKDOWN_TABLE_ROW_REGEXP).matcher(line);
+                if (tableRowMatcher.find()) {
+                    rowCount++;
+                    String row = tableRowMatcher.group(2);
+                    String[] cols = row.split("\\|");
+                    newLine += "<tr>";
+                    for (String col : cols) {
+                        if (rowCount == 1) {
+                            newLine += "<th>" + col + "</th>";
+                        } else if (rowCount > 2) {
+                            newLine += "<td>" + col + "</td>";
+                        }
+                    }
+                    newLine += "</tr>";
+                }
+                i++;
+                line = lines.get(i);
+                tableRowMatcher = Pattern.compile(MARKDOWN_TABLE_ROW_REGEXP).matcher(line);
             }
-            if (count > 0 && tableRowFlag) {
-                newLine += "<table border='1' cellspacing='0'>";
-                // 处理表头
-                if (count >= 2) {
-                    String tableTitle = tempList.get(0);
-                    String[] titles = tableTitle.split("\\|");
-                    newLine += "<tr>";
-                    for (String title : titles) {
-                        newLine += "<th>" + title + "</th>";
-                    }
-                    newLine += "</tr>";
-                }
-                // 处理表格内容
-                for (int j = 2; j < count; j++) {
-                    String tableRow = tempList.get(j);
-                    String[] columns = tableRow.split("\\|");
-                    newLine += "<tr>";
-                    for (String column : columns) {
-                        newLine += "<td>" + column + "</td>";
-                    }
-                    newLine += "</tr>";
-                }
-                newLine += "</table>";
-                newLines.add(newLine);
-                newLine = "";
-                count = 0;
-                tempList.clear();
-                simpleQuoteFlag = false;
+            if (newLine.trim().length() > 0) {
+                resultList.add("<table border='1' cellspacing='0'>" + newLine + "</table>");
             }
 
             // 试图处理跨行代码
+            newLine = "";
             Matcher codeBlockStartMatcher = Pattern.compile(MARKDOWN_CODE_BLOCK_START_REGEXP).matcher(line);
             if (codeBlockStartMatcher.find()) {
                 String code = "";
-                newLine="";
                 while (!Pattern.compile(MARKDOWN_CODE_BLOCK_END_REGEXP).matcher(line).find()) {
                     i++;
                     line = lines.get(i);
@@ -230,12 +196,13 @@ public class MarkdownToHtml {
                     }
                 }
                 newLine += "<xmp>" + code + "</xmp>";
-                newLines.add(newLine);
-                newLine = "";
+                resultList.add(newLine);
                 continue;
             }
 
-            newLines.add("<p>" + lines.get(i) + "</p>");
+            if (lines.get(i).trim().length() > 0) {
+                resultList.add("<p>" + lines.get(i) + "</p>");
+            }
         }
 
         // 将lines集合中的所有行写入到字符串中
@@ -248,7 +215,7 @@ public class MarkdownToHtml {
                 "    <title>Title</title>\n" +
                 "</head>\n" +
                 "<body>");
-        for (String line : newLines) {
+        for (String line : resultList) {
             htmlStr.append(line);
         }
         htmlStr.append("</body>\n" +
@@ -256,6 +223,29 @@ public class MarkdownToHtml {
 
         // 将转换后的html结果写入文件
         writeHtml(html, htmlStr.toString());
+    }
+
+    /**
+     * 匹配替换
+     *
+     * @param regex       匹配的正则表达式
+     * @param text        待匹配的字符串
+     * @param replacement 匹配成功后要替换成的字符串
+     * @return 返回替换后的字符串
+     */
+    private static String matchReplace(String regex, String text, String replacement) {
+        Matcher matcher = Pattern.compile(regex).matcher(text);
+        String result = "";
+        if (matcher.find()) {
+            result = matcher.replaceAll(replacement);
+            if (text.contains("三体")) {
+                System.out.println("=============" + result);
+            }
+        }
+        if (Pattern.compile(MARKDOWN_SIMPLE_LINK_REGEXP).matcher(text).find() && !Pattern.compile(MARKDOWN_IMAGE_LINK_REGEXP).matcher(text).find()) {
+            return "";
+        }
+        return result;
     }
 
     /**
