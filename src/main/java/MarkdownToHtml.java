@@ -62,12 +62,12 @@ public class MarkdownToHtml {
         List<String> lines = loadMd(md);
 
         // 处理单行匹配，多行作用
-        ArrayList<String> newList = new ArrayList<String>();
-        int count = 0;
-        boolean unorderedListFlag = false;
-        boolean orderedListFlag = false;
-        boolean simpleQuoteFlag = false;
-        boolean tableRowFlag = false;
+        ArrayList<String> newLines = new ArrayList<String>();
+        int count = 0;// 计数器，记录匹配到的行数
+        boolean unorderedListFlag = false;// 无序列表标志，当为true时表示当前正在遍历的行是无序列表行，为false时表示前正在遍历的行不是无序列表行
+        boolean orderedListFlag = false;// 有序列表标志，当为true时表示当前正在遍历的行是有序列表行，为false时表示前正在遍历的行不是有序列表行
+        boolean simpleQuoteFlag = false;// 简单引用行标志，当为true时表示当前正在遍历的行是简单引用行，为false时表示前正在遍历的行不是简单引用行
+        boolean tableRowFlag = false;// 表格行标志，当为true时表示当前正在遍历的行是表格行标志，为false时表示前正在遍历的行不是表格行标志
         String newLine = "";
         List<String> tempList = new ArrayList<String>();
         for (int i = 0; i < lines.size(); i++) {
@@ -122,15 +122,18 @@ public class MarkdownToHtml {
                 count++;
                 tempList.add(unorderedListMatcher.group(2));
                 unorderedListFlag = true;
-                continue;
+                continue;// 注意，匹配后，需要跳出本次循环，不要执行后面的代码
             }
-            if (count > 0 && unorderedListFlag) {
+            if (count > 0 && unorderedListFlag) {// 单凭count一个变量无法确定当前处理的是无序列表，所以还增加了一个unorderedListFlag标记用来判断当前处理的是无序列表
+                // 无序列表需要添加"<ul></ul>"
                 newLine += "<ul>";
                 for (int j = 0; j < count; j++) {
+                    // 将匹配到的所有列表行作"<li></li>"处理
                     newLine += "<li>" + tempList.get(j) + "</li>";
                 }
                 newLine += "</ul>";
-                newList.add(newLine);
+                newLines.add(newLine);
+                // 注意，由于下面几个都是局部变量，会被用到多次，所以将其重置
                 newLine = "";
                 count = 0;
                 tempList.clear();
@@ -150,7 +153,7 @@ public class MarkdownToHtml {
                     newLine += "<li>" + tempList.get(j) + "</li>";
                 }
                 newLine += "</ol>";
-                newList.add(newLine);
+                newLines.add(newLine);
                 newLine = "";
                 count = 0;
                 tempList.clear();
@@ -170,7 +173,7 @@ public class MarkdownToHtml {
                     newLine += tempList.get(j) + "<br/>";
                 }
                 newLine += "</blockquote>";
-                newList.add(newLine);
+                newLines.add(newLine);
                 newLine = "";
                 count = 0;
                 tempList.clear();
@@ -207,7 +210,7 @@ public class MarkdownToHtml {
                     newLine += "</tr>";
                 }
                 newLine += "</table>";
-                newList.add(newLine);
+                newLines.add(newLine);
                 newLine = "";
                 count = 0;
                 tempList.clear();
@@ -227,12 +230,12 @@ public class MarkdownToHtml {
                     }
                 }
                 newLine += "<xmp>" + code + "</xmp>";
-                newList.add(newLine);
+                newLines.add(newLine);
                 newLine = "";
                 continue;
             }
 
-            newList.add("<p>" + lines.get(i) + "</p>");
+            newLines.add("<p>" + lines.get(i) + "</p>");
         }
 
         // 将lines集合中的所有行写入到字符串中
@@ -245,7 +248,7 @@ public class MarkdownToHtml {
                 "    <title>Title</title>\n" +
                 "</head>\n" +
                 "<body>");
-        for (String line : newList) {
+        for (String line : newLines) {
             htmlStr.append(line);
         }
         htmlStr.append("</body>\n" +
