@@ -47,7 +47,9 @@ public class MarkdownToHtml {
     private final static String MARKDOWN_TABLE_ROW_REGEXP = "^(\\|)(.*?)\\|$";
 
     // 跨行匹配，代码块正则，需要跨行匹配 ```java ```
-    private final static String MARKDOWN_CODE_BLOCK_REGEXP = "(`{3})(\\w+)([\\s\\S]*?|[\\w\\W]*?|[\\d\\D]*?)\\1";
+    private final static String MARKDOWN_CODE_BLOCK_REGEXP = "(`{3})(\\w+)([\\s\\S]*?|[\\w\\W]*?|[\\d\\D]*?)\\1";// 匹配一整个代码块
+    private final static String MARKDOWN_CODE_BLOCK_START_REGEXP = "^[`]{3}\\w+";// 匹配代码块的开头
+    private final static String MARKDOWN_CODE_BLOCK_END_REGEXP = "^[`]{3}$";// 匹配代码块的结尾
 
     /**
      * 将markdown文件转换成html文件
@@ -59,16 +61,22 @@ public class MarkdownToHtml {
         // 加载markdown文件中的所有非空白行
         List<String> lines = loadMd(md);
 
-        // 处理行内匹配和单行匹配
+        // 处理单行匹配，多行作用
+        ArrayList<String> newList = new ArrayList<String>();
+        int count = 0;
+        boolean unorderedListFlag = false;
+        boolean orderedListFlag = false;
+        boolean simpleQuoteFlag = false;
+        boolean tableRowFlag = false;
+        String newLine = "";
+        List<String> tempList = new ArrayList<String>();
         for (int i = 0; i < lines.size(); i++) {
-            // 获取当前正在遍历的行
             String line = lines.get(i);
-            String newLine = line;
-            // 处理行内匹配，由于一行内可能会有多个行内匹配，所以必须都匹配一遍
+            // 处理行内匹配
             Matcher boldMatcher = Pattern.compile(MARKDOWN_BOLD_REGEXP).matcher(line);
             if (boldMatcher.find()) {// 粗体
                 newLine = boldMatcher.replaceAll("<b>$2</b>");
-                lines.set(i, newLine);// 替换后，用set()方法修改lines中对应索引的值
+                lines.set(i, newLine);
             }
             Matcher italicMatcher = Pattern.compile(MARKDOWN_ITALIC_REGEXP).matcher(line);
             if (italicMatcher.find()) {// 斜体
@@ -90,7 +98,6 @@ public class MarkdownToHtml {
                 newLine = lineCodeMatcher.replaceAll("<code>$2</code>");
                 lines.set(i, newLine);
             }
-
             // 处理单行匹配
             Matcher titleMatcher = Pattern.compile(MARKDOWN_TITLE_REGEXP).matcher(line);
             if (titleMatcher.find()) {// 标题行
@@ -108,37 +115,22 @@ public class MarkdownToHtml {
                 newLine = separateLineMatcher.replaceAll("<hr/>");
                 lines.set(i, newLine);
             }
-        }
 
-        // 处理单行匹配，多行作用
-        ArrayList<String> newLines = new ArrayList<String>();
-        int count = 0;// 计数器，记录匹配到的行数
-        boolean unorderedListFlag = false;// 无序列表标志，当为true时表示当前正在遍历的行是无序列表行，为false时表示前正在遍历的行不是无序列表行
-        boolean orderedListFlag = false;// 有序列表标志，当为true时表示当前正在遍历的行是有序列表行，为false时表示前正在遍历的行不是有序列表行
-        boolean simpleQuoteFlag = false;// 简单引用行标志，当为true时表示当前正在遍历的行是简单引用行，为false时表示前正在遍历的行不是简单引用行
-        boolean tableRowFlag = false;// 表格行标志，当为true时表示当前正在遍历的行是表格行标志，为false时表示前正在遍历的行不是表格行标志
-        String newLine = "";
-        List<String> tempList = new ArrayList<String>();// 临时集合，用来存放连续匹配到的行
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
             // 无序列表
             Matcher unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);
             if (unorderedListMatcher.find()) {
                 count++;
                 tempList.add(unorderedListMatcher.group(2));
                 unorderedListFlag = true;
-                continue;// 注意，匹配后，需要跳出本次循环，不要执行后面的代码
+                continue;
             }
-            if (count > 0 && unorderedListFlag) {// 单凭count一个变量无法确定当前处理的是无序列表，所以还增加了一个unorderedListFlag标记用来判断当前处理的是无序列表
-                // 无序列表需要添加"<ul></ul>"
+            if (count > 0 && unorderedListFlag) {
                 newLine += "<ul>";
                 for (int j = 0; j < count; j++) {
-                    // 将匹配到的所有列表行作"<li></li>"处理
                     newLine += "<li>" + tempList.get(j) + "</li>";
                 }
                 newLine += "</ul>";
-                newLines.add(newLine);
-                // 注意，由于下面几个都是局部变量，会被用到多次，所以将其重置
+                newList.add(newLine);
                 newLine = "";
                 count = 0;
                 tempList.clear();
@@ -158,7 +150,7 @@ public class MarkdownToHtml {
                     newLine += "<li>" + tempList.get(j) + "</li>";
                 }
                 newLine += "</ol>";
-                newLines.add(newLine);
+                newList.add(newLine);
                 newLine = "";
                 count = 0;
                 tempList.clear();
@@ -178,7 +170,7 @@ public class MarkdownToHtml {
                     newLine += tempList.get(j) + "<br/>";
                 }
                 newLine += "</blockquote>";
-                newLines.add(newLine);
+                newList.add(newLine);
                 newLine = "";
                 count = 0;
                 tempList.clear();
@@ -215,27 +207,33 @@ public class MarkdownToHtml {
                     newLine += "</tr>";
                 }
                 newLine += "</table>";
-                newLines.add(newLine);
+                newList.add(newLine);
                 newLine = "";
                 count = 0;
                 tempList.clear();
                 simpleQuoteFlag = false;
             }
 
-            newLines.add("<p>" + line + "</p>");
-        }
+            // 试图处理跨行代码
+            Matcher codeBlockStartMatcher = Pattern.compile(MARKDOWN_CODE_BLOCK_START_REGEXP).matcher(line);
+            if (codeBlockStartMatcher.find()) {
+                String code = "";
+                newLine="";
+                while (!Pattern.compile(MARKDOWN_CODE_BLOCK_END_REGEXP).matcher(line).find()) {
+                    i++;
+                    line = lines.get(i);
+                    if (!Pattern.compile(MARKDOWN_CODE_BLOCK_END_REGEXP).matcher(line).find()) {
+                        code += line + "\n";
+                    }
+                }
+                newLine += "<xmp>" + code + "</xmp>";
+                newList.add(newLine);
+                newLine = "";
+                continue;
+            }
 
-        // 处理跨行匹配，即处理代码块的情况
-        String str = "";
-        for (String line : newLines) {
-            str += line + "\n";
+            newList.add("<p>" + lines.get(i) + "</p>");
         }
-        Matcher codeBlockMatcher = Pattern.compile(MARKDOWN_CODE_BLOCK_REGEXP).matcher(str);
-        if (codeBlockMatcher.find()) {
-            str = codeBlockMatcher.replaceAll("<pre><code>$3</code></pre>");
-        }
-        lines.clear();
-        lines.add(str);
 
         // 将lines集合中的所有行写入到字符串中
         StringBuilder htmlStr = new StringBuilder();
@@ -247,8 +245,8 @@ public class MarkdownToHtml {
                 "    <title>Title</title>\n" +
                 "</head>\n" +
                 "<body>");
-        for (String line : lines) {
-            htmlStr.append(line).append("\n");
+        for (String line : newList) {
+            htmlStr.append(line);
         }
         htmlStr.append("</body>\n" +
                 "</html>");
