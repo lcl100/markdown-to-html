@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body><p><h1> 使用正则表达式将markdown转换成html</h1></p>
+<p><h2> 行内匹配</h2></p>
+<p>我是<b>加粗文本</b>，我在一行中，我还可以通过 <b>加粗</b>。</p>
+<p>我也是<i>斜体</i>文本，还可以通过这也的方式 <i>hello world</i> 倾斜。</p>
+<p>我还可以是行内<del>删除线</del>呢</p>
+<p>当然我也可以使用超链接，比如说打开<a href='http://wwww.baidu.com'>百度</a>，或者打开交友网站<a href='http://www.github.com/'>github</a></p>
+<p>我还可以在每一行文本中间写一些代码如<code>int num=12;</code>或者一个<code>System.out.println("hello world);</code>呢。</p>
+<p>我是不是很厉害啊！</p>
+<p><h2> 单行匹配</h2></p>
+<p><h1> 一级标题</h1></p>
+<p><h2> 二级标题</h2></p>
+<p><h3> 三级标题</h3></p>
+<p><h4> 四级标题</h4></p>
+<p><h5> 五级标题</h5></p>
+<p><h6> 六级标题</h6></p>
+<p><h6># 六级标题</h6></p>
+<p>一张美丽的图片：</p>
+<p><img src='https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fgss0.baidu.com%2F9vo3dSag_xI4khGko9WTAnF6hhy%2Fzhidao%2Fpic%2Fitem%2F0dd7912397dda144a4a40cd8bcb7d0a20cf4862e.jpg&refer=http%3A%2F%2Fgss0.baidu.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=jpeg?sec=1638676098&t=dc2653a3a586c52e3336906846756daf' title='三体智子' alt='三体智子' /></p>
+<p>我们是美丽的分割线：</p>
+<p><hr/></p>
+<p>分割线</p>
+<p><hr/></p>
+<p>分割线</p>
+<p><hr/></p>
+<p><h2> 跨行匹配</h2></p>
+<p><pre><code></p>
+<p>public class Test{</p>
+<p>    @Test</p>
+<p>    public void test() {</p>
+<p>        String str = "我是<b>加粗文本</b>，我在一行中，我还可以通过 <b>加粗</b>。";</p>
+<p>        Matcher matcher = Pattern.compile(MARKDOWN<i>BOLD</i>REGEXP).matcher(str);</p>
+<p>        String result = matcher.replaceAll("<b>$2</b>");</p>
+<p>        System.out.println(result);</p>
+<p>    }</p>
+<p>}</p>
+<p></code></pre></p>
+<p>单行匹配，多行作用</p>
+<p>无序列表：</p>
+<ul><li>red</li><li>green</li><li>blue</li></ul>
+<p>我们还有有序列表</p>
+<ol><li>唐僧</li><li>孙悟空</li><li>猪八戒</li><li>沙僧</li></ol>
+<p>有一个Bug就是最后必须留一个空行，否则列表无法被遍历到</p>
+<p>我们可以写简单的引用：</p>
+<blockquote>注：这是引用的一段话。<br/><br/>这也是引用的一段话。<br/></blockquote>
+<p>还需要内容。。。。。在单行匹配后面必须还有一行内容才能正确运行。</p>
+<p>这里还有一个表格待处理：</p>
+<table border='1' cellspacing='0'><tr><th>ID</th><th>姓名</th><th>年龄</th><th>性别</th></tr><tr><td>1</td><td>张三</td><td>18</td><td>男</td></tr><tr><td>2</td><td>李四</td><td>19</td><td>女</td></tr><tr><td>3</td><td>王五</td><td>20</td><td>女</td></tr><tr><td>4</td><td>赵六</td><td>21</td><td>男</td></tr><tr><td>5</td><td>郑七</td><td>22</td><td>男</td></tr></table>
+<p>表格完成</p>
+
+</body>
+</html>

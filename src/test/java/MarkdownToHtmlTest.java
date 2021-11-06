@@ -1,14 +1,10 @@
-# markdown-to-html
+import org.junit.Test;
 
-## 概述
-
-通过正则表达式将markdown文档转换成html文档。
-
-## 使用说明
-
-只需要通过`MarkdownToHtml.convert(mdFilePath, htmlFilePath);`即可将markdown文档转换成html文档。具体代码请参考：
-
-```java
+/**
+ * @author lcl100
+ * @create 2021-11-06 20:48
+ * @desc MarkdownToHtml类的测试类
+ */
 public class MarkdownToHtmlTest {
     @Test
     public void testConvert() {
@@ -17,4 +13,3 @@ public class MarkdownToHtmlTest {
         MarkdownToHtml.convert(mdFilePath, htmlFilePath);
     }
 }
-```
