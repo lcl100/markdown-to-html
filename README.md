@@ -49,3 +49,6 @@ public class MarkdownToHtmlTest {
     }
 }
 ```
+
+## 注意事项
+- 如果图片链接中存在下划线，可能会被当作斜体解析，无法正确显示图片。

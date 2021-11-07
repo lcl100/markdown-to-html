@@ -22,7 +22,7 @@ public class MarkdownToHtml {
     // 行内匹配，粗体正则
     private final static String MARKDOWN_BOLD_REGEXP = "([\\*_]{2})(.*?)\\1";
     // 行内匹配，斜体正则
-    private final static String MARKDOWN_ITALIC_REGEXP = "(?<![\\*_])(\\*|_)([^\\*_]+?)\\1";
+    private final static String MARKDOWN_ITALIC_REGEXP = "(?<![\\*_])(\\*|_)([^\\*_]+?)\\1";// 图片超链接中可能有"_"下划线，会导致被当作斜体处理，无法显示，所以添加"\b"
     // 行内匹配，删除线正则，匹配 ~~red~~
     private final static String MARKDOWN_DELETE_LINE_REGEXP = "(~~)(.*?)\\1";
     // 行内匹配，普通链接正则，匹配 []()
@@ -42,7 +42,7 @@ public class MarkdownToHtml {
     // 单行匹配，多行作用，有序列表正则
     private final static String MARKDOWN_ORDERED_LIST_REGEXP = "^([\\d+])\\.\\s(.*)";
     // 单行匹配，多行作用，简单引用正则
-    private final static String MARKDOWN_SIMPLE_QUOTE_REGEXP = "^([>] )(.*)";
+    private final static String MARKDOWN_SIMPLE_QUOTE_REGEXP = "^([>] ?)(.*)";
     // 单行匹配，多行作用，表格行正则，匹配 |表格列内容|表格列内容|
     private final static String MARKDOWN_TABLE_ROW_REGEXP = "^(\\|)(.*?)\\|$";
 
@@ -64,144 +64,105 @@ public class MarkdownToHtml {
         // 处理单行匹配，多行作用
         String newLine = "";
         List<String> resultList = new ArrayList<String>();
+        List<String> tempList = new ArrayList<String>();
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             // 处理行内匹配
             Matcher boldMatcher = Pattern.compile(MARKDOWN_BOLD_REGEXP).matcher(line);
             if (boldMatcher.find()) {// 粗体
-                newLine = boldMatcher.replaceAll("<b>$2</b>");
-                lines.set(i, newLine);
+                line = replaceBold(line);
             }
             Matcher italicMatcher = Pattern.compile(MARKDOWN_ITALIC_REGEXP).matcher(line);
             if (italicMatcher.find()) {// 斜体
-                newLine = italicMatcher.replaceAll("<i>$2</i>");
-                lines.set(i, newLine);
+                line = replaceItalic(line);
             }
             Matcher deleteLineMatcher = Pattern.compile(MARKDOWN_DELETE_LINE_REGEXP).matcher(line);
             if (deleteLineMatcher.find()) {// 删除线
-                newLine = deleteLineMatcher.replaceAll("<del>$2</del>");
-                lines.set(i, newLine);
+                line = replaceDeleteLine(line);
             }
             Matcher simpleLinkMatcher = Pattern.compile(MARKDOWN_SIMPLE_LINK_REGEXP).matcher(line);
             if (simpleLinkMatcher.find()) {// 普通链接
-                newLine = simpleLinkMatcher.replaceAll("<a href='$2'>$1</a>");
-                lines.set(i, newLine);
+                line = replaceSimpleLink(line);
             }
             Matcher lineCodeMatcher = Pattern.compile(MARKDOWN_LINE_CODE_REGEXP).matcher(line);
             if (lineCodeMatcher.find()) {// 行内代码
-                newLine = lineCodeMatcher.replaceAll("<code>$2</code>");
-                lines.set(i, newLine);
+                line = replaceLineCode(line);
             }
             // 处理单行匹配
             Matcher titleMatcher = Pattern.compile(MARKDOWN_TITLE_REGEXP).matcher(line);
             if (titleMatcher.find()) {// 标题行
-                String sign = titleMatcher.group(1);
-                newLine = titleMatcher.replaceAll("<h" + sign.length() + ">$2</h" + sign.length() + ">");
-                lines.set(i, newLine);
+                line = replaceTitle(line);
             }
             Matcher imageLinkMatcher = Pattern.compile(MARKDOWN_IMAGE_LINK_REGEXP).matcher(line);
-            if (imageLinkMatcher.find()) {// 图片链接行
-                newLine = imageLinkMatcher.replaceAll("<img src='$2' title='$1' alt='$1' />");
-                lines.set(i, newLine);
+            if (imageLinkMatcher.find()) {// 图片链接行，注意图片链接中如果匹配到斜体的"_"可能无法解析
+                line = replaceImageLink(line);
             }
             Matcher separateLineMatcher = Pattern.compile(MARKDOWN_SEPARATE_LINE_REGEXP).matcher(line);
             if (separateLineMatcher.find()) {// 分隔线行
-                newLine = separateLineMatcher.replaceAll("<hr/>");
-                lines.set(i, newLine);
+                line = replaceSeparateLine(line);
             }
 
+            // 处理单行匹配，多行作用
             // 无序列表
-            newLine = "";
+            // 下面的代码就是将连续的无序列表行添加到List集合中，再调用相关方法进行处理
+            tempList.clear();
             Matcher unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);
             while (unorderedListMatcher.find()) {
-                unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);// 因为find()方法是一次性的，所以要重新生成Matcher
-                if (unorderedListMatcher.find()) {
-                    newLine += "<li>" + unorderedListMatcher.group(2) + "</li>";
-                }
+                tempList.add(line);
                 i++;
                 line = lines.get(i);
                 unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);
             }
-            if (newLine.trim().length() > 0) {
-                resultList.add("<ul>" + newLine + "</ul>");
-            }
+            resultList.add(replaceUnorderedList(tempList));
             // 有序列表
-            newLine = "";
+            tempList.clear();
             Matcher orderedListMatcher = Pattern.compile(MARKDOWN_ORDERED_LIST_REGEXP).matcher(line);
             while (orderedListMatcher.find()) {
-                orderedListMatcher = Pattern.compile(MARKDOWN_ORDERED_LIST_REGEXP).matcher(line);
-                if (orderedListMatcher.find()) {
-                    newLine += "<li>" + orderedListMatcher.group(2) + "</li>";
-                }
+                tempList.add(line);
                 i++;
                 line = lines.get(i);
                 orderedListMatcher = Pattern.compile(MARKDOWN_ORDERED_LIST_REGEXP).matcher(line);
             }
-            if (newLine.trim().length() > 0) {
-                resultList.add("<ol>" + newLine + "</ol>");
-            }
+            resultList.add(replaceOrderedList(tempList));
             // 简单引用，如果是空">"行则后面应该有空格，否则也无法匹配成功
-            newLine = "";
+            tempList.clear();
             Matcher simpleQuoteMatcher = Pattern.compile(MARKDOWN_SIMPLE_QUOTE_REGEXP).matcher(line);
             while (simpleQuoteMatcher.find()) {
-                simpleQuoteMatcher = Pattern.compile(MARKDOWN_SIMPLE_QUOTE_REGEXP).matcher(line);
-                if (simpleQuoteMatcher.find()) {
-                    newLine += simpleQuoteMatcher.group(2) + "<br/>";
-                }
+                tempList.add(line);
                 i++;
                 line = lines.get(i);
                 simpleQuoteMatcher = Pattern.compile(MARKDOWN_SIMPLE_QUOTE_REGEXP).matcher(line);
             }
-            if (newLine.trim().length() > 0) {
-                resultList.add("<blockquote>" + newLine + "</blockquote>");
-            }
+            resultList.add(replaceSimpleQuote(tempList));
             // 表格行，注意每个表格行最后一个"|"的后面不能有空格，否则无法匹配成功
-            newLine = "";
+            tempList.clear();
             Matcher tableRowMatcher = Pattern.compile(MARKDOWN_TABLE_ROW_REGEXP).matcher(line);
-            int rowCount = 0;
             while (tableRowMatcher.find()) {
-                tableRowMatcher = Pattern.compile(MARKDOWN_TABLE_ROW_REGEXP).matcher(line);
-                if (tableRowMatcher.find()) {
-                    rowCount++;
-                    String row = tableRowMatcher.group(2);
-                    String[] cols = row.split("\\|");
-                    newLine += "<tr>";
-                    for (String col : cols) {
-                        if (rowCount == 1) {
-                            newLine += "<th>" + col + "</th>";
-                        } else if (rowCount > 2) {
-                            newLine += "<td>" + col + "</td>";
-                        }
-                    }
-                    newLine += "</tr>";
-                }
+                tempList.add(line);
                 i++;
                 line = lines.get(i);
                 tableRowMatcher = Pattern.compile(MARKDOWN_TABLE_ROW_REGEXP).matcher(line);
             }
-            if (newLine.trim().length() > 0) {
-                resultList.add("<table border='1' cellspacing='0'>" + newLine + "</table>");
-            }
+            resultList.add(replaceTable(tempList));
 
             // 试图处理跨行代码
-            newLine = "";
+            tempList.clear();
             Matcher codeBlockStartMatcher = Pattern.compile(MARKDOWN_CODE_BLOCK_START_REGEXP).matcher(line);
             if (codeBlockStartMatcher.find()) {
-                String code = "";
-                while (!Pattern.compile(MARKDOWN_CODE_BLOCK_END_REGEXP).matcher(line).find()) {
+                Matcher codeBlockEndMatcher = Pattern.compile(MARKDOWN_CODE_BLOCK_END_REGEXP).matcher(line);
+                while (!codeBlockEndMatcher.find()) {
+                    tempList.add(line);
                     i++;
                     line = lines.get(i);
-                    if (!Pattern.compile(MARKDOWN_CODE_BLOCK_END_REGEXP).matcher(line).find()) {
-                        code += line + "\n";
-                    }
+                    codeBlockEndMatcher = Pattern.compile(MARKDOWN_CODE_BLOCK_END_REGEXP).matcher(line);
                 }
-                newLine += "<xmp>" + code + "</xmp>";
-                resultList.add(newLine);
+                tempList.add(line);
+                resultList.add(replaceCodeBlock(tempList));
                 continue;
             }
 
-            if (lines.get(i).trim().length() > 0) {
-                resultList.add("<p>" + lines.get(i) + "</p>");
+            if (line.trim().length() > 0) {
+                resultList.add("<p>" + line + "</p>");
             }
         }
 
@@ -226,26 +187,230 @@ public class MarkdownToHtml {
     }
 
     /**
-     * 匹配替换
+     * 将markdown格式的粗体文本转换成html格式的粗体字符串
      *
-     * @param regex       匹配的正则表达式
-     * @param text        待匹配的字符串
-     * @param replacement 匹配成功后要替换成的字符串
-     * @return 返回替换后的字符串
+     * @param text markdown格式的粗体文本
+     * @return html格式的粗体字符串
      */
-    private static String matchReplace(String regex, String text, String replacement) {
-        Matcher matcher = Pattern.compile(regex).matcher(text);
-        String result = "";
-        if (matcher.find()) {
-            result = matcher.replaceAll(replacement);
-            if (text.contains("三体")) {
-                System.out.println("=============" + result);
+    private static String replaceBold(String text) {
+        Matcher boldMatcher = Pattern.compile(MARKDOWN_BOLD_REGEXP).matcher(text);
+        if (boldMatcher.find()) {// 粗体
+            text = boldMatcher.replaceAll("<b>$2</b>");
+        }
+        return text;
+    }
+
+    /**
+     * 将markdown格式的斜体文本转换成html格式的斜体字符串
+     *
+     * @param text markdown格式的斜体文本
+     * @return html格式的斜体字符串
+     */
+    private static String replaceItalic(String text) {
+        Matcher italicMatcher = Pattern.compile(MARKDOWN_ITALIC_REGEXP).matcher(text);
+        if (italicMatcher.find()) {// 斜体
+            text = italicMatcher.replaceAll("<i>$2</i>");
+        }
+        return text;
+    }
+
+    /**
+     * 将markdown格式的删除线文本转换成html格式的删除线字符串
+     *
+     * @param text markdown格式的删除线文本
+     * @return html格式的删除线字符串
+     */
+    private static String replaceDeleteLine(String text) {
+        Matcher deleteLineMatcher = Pattern.compile(MARKDOWN_DELETE_LINE_REGEXP).matcher(text);
+        if (deleteLineMatcher.find()) {// 删除线
+            text = deleteLineMatcher.replaceAll("<del>$2</del>");
+        }
+        return text;
+    }
+
+    /**
+     * 将markdown格式的超链接文本转换成html格式的超链接字符串
+     *
+     * @param text markdown格式的超链接文本
+     * @return html格式的超链接字符串
+     */
+    private static String replaceSimpleLink(String text) {
+        Matcher simpleLinkMatcher = Pattern.compile(MARKDOWN_SIMPLE_LINK_REGEXP).matcher(text);
+        if (simpleLinkMatcher.find()) {// 普通链接
+            text = simpleLinkMatcher.replaceAll("<a href='$2'>$1</a>");
+        }
+        return text;
+    }
+
+    /**
+     * 将markdown格式的行内代码文本转换成html格式的行内代码字符串
+     *
+     * @param text markdown格式的行内代码文本
+     * @return html格式的行内代码字符串
+     */
+    private static String replaceLineCode(String text) {
+        Matcher lineCodeMatcher = Pattern.compile(MARKDOWN_LINE_CODE_REGEXP).matcher(text);
+        if (lineCodeMatcher.find()) {// 行内代码
+            text = lineCodeMatcher.replaceAll("<code>$2</code>");
+        }
+        return text;
+    }
+
+    /**
+     * 将markdown格式的标题行文本转换成html格式的标题行字符串
+     *
+     * @param text markdown格式的标题行文本
+     * @return html格式的标题行字符串
+     */
+    private static String replaceTitle(String text) {
+        Matcher titleMatcher = Pattern.compile(MARKDOWN_TITLE_REGEXP).matcher(text);
+        if (titleMatcher.find()) {// 标题行
+            String sign = titleMatcher.group(1);
+            text = titleMatcher.replaceAll("<h" + sign.length() + ">$2</h" + sign.length() + ">");
+        }
+        return text;
+    }
+
+    /**
+     * 将markdown格式的图片链接文本转换成html格式的图片链接字符串
+     *
+     * @param text markdown格式的图片链接文本
+     * @return html格式的图片链接字符串
+     */
+    private static String replaceImageLink(String text) {
+        Matcher imageLinkMatcher = Pattern.compile(MARKDOWN_IMAGE_LINK_REGEXP).matcher(text);
+        if (imageLinkMatcher.find()) {// 图片链接行
+            text = imageLinkMatcher.replaceAll("<img src='$2' title='$1' alt='$1' />");
+        }
+        return text;
+    }
+
+    /**
+     * 将markdown格式的分隔线文本转换成html格式的分隔线字符串
+     *
+     * @param text markdown格式的分隔线文本
+     * @return html格式的分隔线字符串
+     */
+    private static String replaceSeparateLine(String text) {
+        Matcher separateLineMatcher = Pattern.compile(MARKDOWN_SEPARATE_LINE_REGEXP).matcher(text);
+        if (separateLineMatcher.find()) {// 分隔线行
+            text = separateLineMatcher.replaceAll("<hr/>");
+        }
+        return text;
+    }
+
+    /**
+     * 将集合中的markdown格式的无序列表行转换成html格式的字符串
+     *
+     * @param unorderedList markdown格式的无序列表行集合
+     * @return html格式的字符串
+     */
+    private static String replaceUnorderedList(List<String> unorderedList) {
+        // 无序列表
+        StringBuilder result = new StringBuilder();
+        if (unorderedList.size() > 0) {
+            result.append("<ul>");
+            for (String line : unorderedList) {
+                Matcher unorderedListMatcher = Pattern.compile(MARKDOWN_UNORDERED_LIST_REGEXP).matcher(line);
+                if (unorderedListMatcher.find()) {
+                    result.append("<li>").append(unorderedListMatcher.group(2)).append("</li>");
+                }
             }
+            result.append("</ul>");
         }
-        if (Pattern.compile(MARKDOWN_SIMPLE_LINK_REGEXP).matcher(text).find() && !Pattern.compile(MARKDOWN_IMAGE_LINK_REGEXP).matcher(text).find()) {
-            return "";
+        return result.toString();
+    }
+
+    /**
+     * 将集合中的markdown格式的有序列表行转换成html格式的字符串
+     *
+     * @param orderedList markdown格式的有序列表行集合
+     * @return html格式的字符串
+     */
+    private static String replaceOrderedList(List<String> orderedList) {
+        StringBuilder result = new StringBuilder();
+        if (orderedList.size() > 0) {
+            result.append("<ol>");
+            for (String line : orderedList) {
+                Matcher orderedListMatcher = Pattern.compile(MARKDOWN_ORDERED_LIST_REGEXP).matcher(line);
+                if (orderedListMatcher.find()) {
+                    result.append("<li>").append(orderedListMatcher.group(2)).append("</li>");
+                }
+            }
+            result.append("</ol>");
         }
-        return result;
+        return result.toString();
+    }
+
+    /**
+     * 将集合中的markdown格式的引用行转换成html格式的字符串
+     *
+     * @param quoteList markdown格式的引用行集合
+     * @return html格式的字符串
+     */
+    private static String replaceSimpleQuote(List<String> quoteList) {
+        StringBuilder result = new StringBuilder();
+        if (quoteList.size() > 0) {
+            result.append("<blockquote>");
+            for (String line : quoteList) {
+                Matcher simpleQuoteMatcher = Pattern.compile(MARKDOWN_SIMPLE_QUOTE_REGEXP).matcher(line);
+                if (simpleQuoteMatcher.find()) {
+                    result.append(simpleQuoteMatcher.group(2)).append("<br/>");
+                }
+            }
+            result.append("</blockquote>");
+        }
+        return result.toString();
+    }
+
+    /**
+     * 将集合中的markdown格式的表格行转换成html格式的字符串
+     *
+     * @param tableRowList markdown格式的表格行集合
+     * @return html格式的字符串
+     */
+    private static String replaceTable(List<String> tableRowList) {
+        StringBuilder result = new StringBuilder();
+        if (tableRowList.size() > 0) {
+            result.append("<table border='1' cellspacing='0'>");
+            for (int i = 0; i < tableRowList.size(); i++) {
+                String line = tableRowList.get(i);
+                Matcher tableRowMatcher = Pattern.compile(MARKDOWN_TABLE_ROW_REGEXP).matcher(line);
+                if (tableRowMatcher.find()) {
+                    String row = tableRowMatcher.group(2);
+                    String[] cols = row.split("\\|");
+                    result.append("<tr>");
+                    for (String col : cols) {
+                        if (i == 0) {
+                            result.append("<th>").append(col).append("</th>");
+                        } else if (i >= 2) {
+                            result.append("<td>").append(col).append("</td>");
+                        }
+                    }
+                    result.append("</tr>");
+                }
+            }
+            result.append("</table>");
+        }
+        return result.toString();
+    }
+
+    /**
+     * 将集合中的markdown格式的代码块中的代码行转换成html格式的字符串
+     *
+     * @param codeBlockList markdown格式的代码块中的代码行集合
+     * @return html格式的字符串
+     */
+    private static String replaceCodeBlock(List<String> codeBlockList) {
+        StringBuilder result = new StringBuilder();
+        if (codeBlockList.size() > 0) {
+            result.append("<xmp>\n");
+            for (int i = 1; i < codeBlockList.size() - 1; i++) {
+                result.append(codeBlockList.get(i)).append("\n");
+            }
+            result.append("</xmp>");
+        }
+        return result.toString();
     }
 
     /**
