@@ -23,7 +23,7 @@
 | 无序列表 | `- A`<br/>`- B`<br/>`- C` | `^([-\+\*]) (.*)` | `<ul>`<br/>&nbsp;&nbsp;&nbsp;&nbsp;`<li>A</li>`<br />&nbsp;&nbsp;&nbsp;&nbsp;`<li>B</li>`<br />&nbsp;&nbsp;&nbsp;&nbsp;`<li>C</li>`<br />`</ul>` | 单行匹配，多行作用 |
 | 有序列表 | `1. A`<br/>`2. B`<br/>`3. C` | `^([\d+])\.\s(.*)` | `<ol>`<br/>&nbsp;&nbsp;&nbsp;&nbsp;`<li>A</li>`<br />&nbsp;&nbsp;&nbsp;&nbsp;`<li>B</li>`<br />&nbsp;&nbsp;&nbsp;&nbsp;`<li>C</li>`<br />`</ol>` | 单行匹配，多行作用 |
 | 简单引用 | `> 引用内容`<br/>`> 引用内容` | `^([>] )(.*)` | `<blockquote>引用内容</blockquote>` | 单行匹配，多行作用 |
-| 表格行 | `|表头1|表头2|`<br/>`|--|--|`<br/>`|列1|列2|` |        `^(\|)(.*?)\|$`                        | `<table><tr><th>标题1</th><th>标题1</th></tr><tr><td>列1</td><td>列2</td></tr></table>` | 单行匹配，多行作用 |
+| 表格行 | <pre>                                        \|表头1\|表头2\|                         \|--\|--\|                                        \|列1\|列2\|                      </pre> |        `^(\|)(.*?)\|$`                        | `<table><tr><th>标题1</th><th>标题1</th></tr><tr><td>列1</td><td>列2</td></tr></table>` | 单行匹配，多行作用 |
 | 代码块 | \`\`\`java<br/>int num=10;<br/>\`\`\` |      (`{3})(\w+)([\s\S]\*?\|[\w\W]\*?\|[\d\D]*?)\1                       | `<xmp>int num=10;</xmp>` | 跨行匹配 ||
 | 代码块开头 | \`\`\`java | ^[\`]{3}\\w+ |                                           |          |
 | 代码块结尾 | \`\`\` | ^[`]{3}$ |                                           |          |
